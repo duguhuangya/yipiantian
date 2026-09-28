@@ -34,7 +34,7 @@ func _run() -> void:
 		expect(entry.plants.clump_count>10,"Marsh plants frame each island")
 		planting_count+=entry.plants.clump_count
 	var stage: Node3D = world.get_node("DistantLandscape")
-	expect(stage.get_child_count()==17,"Four headlands and thirteen distinct hills form the distant landscape")
+	expect(stage.get_child_count()==5,"Unique silhouettes replace the repeated strips")
 	var east: Node3D
 	var main_bank: Node3D
 	for node: Node in world.get_children():

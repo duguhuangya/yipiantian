@@ -125,6 +125,9 @@ func _run() -> void:
 	match ablation:
 		"msaa": root.msaa_3d=Viewport.MSAA_2X
 		"lod": root.mesh_lod_threshold=1.0
+		"resolution900": root.scaling_3d_scale=900.0 / 2160.0
+		"resolution720": root.scaling_3d_scale=720.0 / 2160.0
+		"dof_off": scene.focus_detail.set_depth_of_field(false)
 		"small_shadows":
 			for node: GeometryInstance3D in scene.find_children("*", "GeometryInstance3D", true, false):
 				var mesh: Mesh = node.mesh if node is MeshInstance3D else (node.multimesh.mesh if node is MultiMeshInstance3D and node.multimesh != null else null)
@@ -139,7 +142,7 @@ func _run() -> void:
 	RenderingServer.viewport_set_measure_render_time(root.get_viewport_rid(),true)
 	await RenderingServer.frame_post_draw
 	_write("startup-pipelines.json",_pipeline_counts())
-	_write("ready.json",{"startup_ms":Time.get_ticks_msec()-started,"engine":Engine.get_version_info(),"exported":not OS.has_feature("editor"),"native_host":native,"rendering_method":RenderingServer.get_current_rendering_method(),"rendering_driver":RenderingServer.get_current_rendering_driver_name(),"adapter":RenderingServer.get_video_adapter_name(),"resolution":resolution,"output_size":root.size,"crop_count":index,"animals":scene.get_node("Environment/CourtyardAnimals").birds.size(),"ablation":ablation,"msaa_3d":root.msaa_3d,"mesh_lod_threshold":root.mesh_lod_threshold,"restored_casters":restored_casters})
+	_write("ready.json",{"startup_ms":Time.get_ticks_msec()-started,"engine":Engine.get_version_info(),"exported":not OS.has_feature("editor"),"native_host":native,"rendering_method":RenderingServer.get_current_rendering_method(),"rendering_driver":RenderingServer.get_current_rendering_driver_name(),"adapter":RenderingServer.get_video_adapter_name(),"resolution":resolution,"output_size":root.size,"crop_count":index,"animals":scene.get_node("Environment/CourtyardAnimals").birds.size(),"ablation":ablation,"msaa_3d":root.msaa_3d,"mesh_lod_threshold":root.mesh_lod_threshold,"scaling_3d_scale":root.scaling_3d_scale,"dof_enabled":scene.focus_detail.get_settings().dof_enabled,"restored_casters":restored_casters})
 	if visual_only:
 		await _visual_comparison()
 		return
@@ -147,8 +150,12 @@ func _run() -> void:
 	phase="capture_day";_status()
 	if not no_captures: root.get_texture().get_image().save_png(output.path_join("day.png"))
 	if visible_only:
+		for row: Dictionary in samples:
+			check(row.drawn_frames > 0 and row.cap == 30 and row.covered_seconds < 0.1, "Visible release sample must draw without being covered under the 30 fps cap: " + row.case)
 		_write("results.json",{"cases":samples,"failures":failures})
-		phase="complete";_status();scene._request_exit();return
+		phase="complete";_status();scene._request_exit()
+		if not failures.is_empty(): get_tree().quit(1)
+		return
 	if soak_hours>0:
 		var end: int=Time.get_ticks_msec()+int(soak_hours*3600000)
 		while Time.get_ticks_msec()<end: await _case("soak_%d"%samples.size(),minf(180,(end-Time.get_ticks_msec())/1000.0))

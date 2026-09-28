@@ -13,7 +13,7 @@ param(
  [switch]$NoCaptures,
  [ValidateSet('','forward_plus','mobile','gl_compatibility')][string]$RenderingMethod='',
  [ValidateSet('','vulkan','d3d12','opengl3')][string]$RenderingDriver='',
- [ValidateSet('','msaa','lod','small_shadows')][string]$Ablation='',
+ [ValidateSet('','msaa','lod','small_shadows','resolution900','resolution720','dof_off')][string]$Ablation='',
  [string]$WarmCacheFrom='',
  [ValidateRange(5,180)][int]$IdleSeconds=180
 )

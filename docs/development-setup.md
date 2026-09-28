@@ -409,9 +409,11 @@ Windows图形独立包stdout在重定向时可能缓冲到退出，期间指定l
 
 未采用的LOD尝试见 `p5-flowers/`、`p5-bamboo/`、`p5-distance/` 和独立工程 `p5-crop-base/`／`p5-crop-lod/`：院内菊花整体换低模没有GPU收益；竹子高低模约1.704／1.702ms，无收益；25米人工档虽减少约24万三角，但会切换可见房屋和树木。作物自动LOD减少约46万三角，但显卡频率不同且薄叶破面风险已有记录，未作逐模型正反近远验收，因此不进入正式资产。锁定显卡频率的系统命令被拒绝；这些小差别不能写成锁频GPU收益。
 
-待画面决定的对照：`p1-final-video/30-left-20-right.mp4`（左30、右20帧；正式策略暂保留30）；`p2-p4-compare/` 为MSAA、阈值与正午植物阴影4K全景／近景；`mobile-images/` 与 `profile-forward-visible/` 为Mobile／Forward+；`p7-p8/` 为900p／720p及景深开关。Mobile发行版暖测 `release-final30-mobile-warm/` 比当前Forward+工作集低约25.5MiB，纹理＋缓冲低约74.1MiB，但缺少SSAO／SSIL且景深前景边缘更粗糙；全局切换需画面判断，双进程共存会增加常驻成本。900p、720p和关景深不限帧短测分别约-12%、-20%和-10% GPU，均未写入正式设置。当前没有核显设备实测，**未在核显验证**。
+待画面决定的对照：`p1-final-video/30-left-20-right.mp4`（左30、右20帧；正式策略暂保留30）；`p2-p4-compare/` 为MSAA、阈值与正午植物阴影4K全景／近景；`mobile-images/` 与 `profile-forward-visible/` 为Mobile／Forward+；`p7-p8/` 为900p／720p及景深开关。Mobile发行版暖测 `release-final30-mobile-warm/` 比当前Forward+工作集低约25.5MiB，纹理＋缓冲低约74.1MiB，但缺少SSAO／SSIL且景深前景边缘更粗糙；全局切换需画面判断，双进程共存会增加常驻成本。900p、720p和关景深不限帧短测分别约-12%、-20%和-10% GPU；30帧发行版可见配对 `release-resolution900-*-valid/`、`release-resolution720-*-valid/` 的纹理＋缓冲约653.3／621.5MiB，比1080p当前值分别少32.7／64.5MiB；操作系统暖缓存工作集673.0／673.7MiB，与1080p的674.2MiB差异不足以宣称进程驻留收益。关景深有效配对 `release-dof_off-*-retry/` 的纹理＋缓冲仍686.0MiB，暖工作集670.6MiB，后者差异也未达稳定结论。三项均未写入正式设置。当前没有核显设备实测，**未在核显验证**。
 
-`--gpu-profile` 各阶段日志在 `profile-forward-visible.log`／`profile-mobile-visible.log`；当前Forward+可见场景约125个表面管线、121个特化变体，材质普查在 `profile-forward-visible/material-census.json`。仅见管线数和工作集相关，尚无统一材质可重复节省的配对证据，因此不改材质。天空参数冻结此前实测无GPU收益，本轮不再重做。截图读回会改变内存结论，性能及发行驻留用 `-NoCaptures`，画面对照另录；用户决策前不得把候选写成已采用。
+分辨率首轮发行候选 `release-resolution900-*`／`release-resolution720-*` 被同屏开发预览遮挡：虽然进程退出码为0，但每段绘制帧数为0、遮挡约8秒、上限降至20帧，所有工作集读数作废。已在 `wallpaper_budget_test.gd` 为 `-VisibleOnly` 加入实际绘制、未遮挡和30帧上限断言；关闭已核验归属的开发预览后用带 `-valid` 后缀的新目录重测，每段241绘制帧、遮挡0秒。景深首次 `release-dof_off-cold/` 在原生宿主挂接前超时，亦未作证据，使用 `-retry` 组。今后发行性能不能只凭退出码或 `results.json` 文件存在，还要核对 `drawn_frames`、`covered_seconds`、`cap` 和实际渲染设置。
+
+`--gpu-profile` 各阶段日志在 `profile-forward-visible.log`／`profile-mobile-visible.log`、`p2-p4-gpu-profile.log`、`p7-p8-gpu-profile.log`；当前Forward+可见场景约125个表面管线、121个特化变体，材质普查在 `profile-forward-visible/material-census.json`。恢复2x MSAA的发行消融特化变体反而降至69个，暖工作集约672.8MiB，与当前674.2MiB近噪声，同时引擎纹理＋缓冲增加83.6MiB；不能单以启动管线计数推断进程内存。尚无统一材质可重复节省的配对证据，因此不改材质。天空参数冻结此前实测无GPU收益，本轮不再重做。截图读回会改变内存结论，性能及发行驻留用 `-NoCaptures`，画面对照另录；用户决策前不得把候选写成已采用。
 
 ### 阴影稳定性与开销定位（2026-09-24）
 
