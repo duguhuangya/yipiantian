@@ -43,7 +43,10 @@ static func instantiate(crop_id: String, stage: String, low_detail: bool = false
 	var packed := load(path) as PackedScene
 	if packed == null:
 		return null
-	return packed.instantiate() as Node3D
+	var crop: Node3D = packed.instantiate() as Node3D
+	for mesh: MeshInstance3D in crop.find_children("*", "MeshInstance3D", true, false):
+		mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return crop
 
 
 static func planting_depth(crop_id: String, stage: String) -> float:

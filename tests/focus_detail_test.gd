@@ -131,7 +131,7 @@ func _run() -> void:
 	_expect(scene.focus_detail.set_quality("low"), "Low quality accepted")
 	scene.focus_detail.set_depth_of_field(true)
 	await create_timer(0.5).timeout
-	_expect(not scene.camera.attributes.dof_blur_far_enabled and _field_bias(1) > 1.0 and root.msaa_3d == Viewport.MSAA_2X, "Low quality uses 2x MSAA without DOF while retaining operation detail")
+	_expect(scene.camera.attributes.dof_blur_far_enabled and _field_bias(1) > 1.0 and root.msaa_3d == Viewport.MSAA_DISABLED, "Low quality keeps manually enabled DOF, disables MSAA and retains operation detail")
 	_expect(scene.focus_detail.get_settings().dof_enabled, "Low quality retains the user's enabled DOF preference")
 	_expect(not scene.focus_detail.set_quality("invalid") and not scene.focus_detail.set_depth_of_field(true, NAN), "Invalid settings do not become presentation state")
 	var sun: DirectionalLight3D = scene.get_node("DirectionalLight3D")

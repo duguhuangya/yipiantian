@@ -90,6 +90,7 @@ static func _triangle(surface: Surface,a: Vector3,b: Vector3,c: Vector3) -> void
 
 static func _mesh(root: Node3D,surface: Surface,tint: Color,label: String,pickable: bool=true) -> void:
 	var mesh:=MeshInstance3D.new();mesh.name=label;mesh.mesh=surface.commit()
+	mesh.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var material:=ShaderMaterial.new();material.shader=preload("res://scenes/environment/pigment.gdshader")
 	material.set_shader_parameter("base_color",tint);material.set_shader_parameter("wash_scale",8.0)
 	mesh.material_override=material;root.add_child(mesh)

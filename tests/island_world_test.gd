@@ -6,6 +6,8 @@ var failures: Array[String] = []
 var output := ProjectSettings.globalize_path("res://../.local/verification/archipelago-20260918/after")
 
 func _initialize() -> void:
+	for arg: String in OS.get_cmdline_user_args():
+		if arg.begins_with("--output="): output=arg.trim_prefix("--output=")
 	_run.call_deferred()
 
 func expect(ok: bool, message: String) -> void:
@@ -13,6 +15,7 @@ func expect(ok: bool, message: String) -> void:
 
 func _run() -> void:
 	DirAccess.make_dir_recursive_absolute(output)
+	root.unfocusable=true
 	root.size = Vector2i(1600,900)
 	scene = load("res://scenes/main.tscn").instantiate()
 	var isolated := output.path_join("session-%d" % Time.get_ticks_usec())
@@ -31,7 +34,7 @@ func _run() -> void:
 		expect(entry.plants.clump_count>10,"Marsh plants frame each island")
 		planting_count+=entry.plants.clump_count
 	var stage: Node3D = world.get_node("DistantLandscape")
-	expect(stage.get_child_count()==5,"Unique silhouettes replace the repeated strips")
+	expect(stage.get_child_count()==17,"Four headlands and thirteen distinct hills form the distant landscape")
 	var east: Node3D
 	var main_bank: Node3D
 	for node: Node in world.get_children():
@@ -70,11 +73,16 @@ func _run() -> void:
 	for key: String in ["RiceHamlet","MulberryCourt","BambooInlet","CanalCourts","WillowMeadow"]:
 		var island: Node3D = neighbors.get_node(key)
 		await look("07-"+key+".png",island.global_position+Vector3(8,5,13),island.global_position+Vector3.UP)
+		for entry: Dictionary in neighbors._islets:
+			if entry.node == island: expect(entry.high != null and entry.high.visible,"Approaching reloads the distant island high model: "+key)
 	scene.camera.global_transform = original_pose
 	scene.camera.set_process(true)
 	scene.focus_detail.set_depth_of_field(true)
 	await create_timer(.5).timeout
 	expect(neighbors._islets[3].distant and neighbors._islets[4].distant,"Far islets select the authored low tier")
+	for entry: Dictionary in neighbors._islets:
+		if entry.releasable and scene.camera.global_position.distance_to(entry.node.global_position)>50.0:
+			expect(entry.high == null,"Returning to the overview releases hidden high detail: "+str(entry.node.name))
 	scene.atmosphere.set_preview_hour(21.0)
 	await shot("08-night.png")
 	scene.atmosphere.set_preview_hour(11.2)
@@ -92,10 +100,16 @@ func _run() -> void:
 	await create_timer(.3).timeout
 	scene.focus_detail.set_quality("low")
 	await process_frame
-	for entry: Dictionary in neighbors._islets: expect(entry.low.visible and not entry.high.visible,"Low quality respects authored tier")
+	for entry: Dictionary in neighbors._islets: expect(entry.low.visible and (entry.high == null or not entry.high.visible),"Low quality respects authored tier")
 	scene.focus_detail.set_quality("standard")
 	await create_timer(.3).timeout
-	expect(neighbors._islets[0].high.visible,"Returning quality recovers near detail")
+	scene.camera.set_process(false)
+	scene.camera.global_position=neighbors._islets[0].node.global_position+Vector3(0,4,10)
+	scene.camera.look_at(neighbors._islets[0].node.global_position+Vector3.UP)
+	await create_timer(.3).timeout
+	expect(neighbors._islets[0].high.visible,"Returning quality recovers near detail on approach")
+	scene.camera.global_transform=original_pose
+	scene.camera.set_process(true)
 	RenderingServer.viewport_set_measure_render_time(root.get_viewport_rid(),true)
 	await create_timer(.5).timeout
 	var measurements: Array[Dictionary] = []

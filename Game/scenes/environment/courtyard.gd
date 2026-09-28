@@ -300,6 +300,9 @@ func _asset(id: String, key: String, at: Vector3, yaw_degrees: float=0, size: fl
 	var high: Node3D=(load(ROOT+id+"/"+id+"_high.glb") as PackedScene).instantiate()
 	var low: Node3D=(load(ROOT+id+"/"+id+"_low.glb") as PackedScene).instantiate()
 	holder.add_child(high);holder.add_child(low);low.visible=false
+	if id == "lotus":
+		for mesh: MeshInstance3D in holder.find_children("*", "MeshInstance3D", true, false):
+			mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	if id in ["tree","osmanthus","bamboo","flowers","lotus","trellis"]:
 		_plant_wind.apply(high,id);_plant_wind.apply(low,id)
 	_lod_pairs[key]=[high,low]

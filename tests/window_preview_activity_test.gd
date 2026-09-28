@@ -15,7 +15,7 @@ func _run() -> void:
 	activity.set_wallpaper_interacting(false)
 	assert(Engine.max_fps==30,"Visible desktop observation remains at 30 FPS")
 	activity.set_wallpaper_visible(false)
-	assert(Engine.max_fps==2,"Covered desktop remains at 2 FPS")
+	assert(Engine.max_fps==20,"Covered desktop keeps pumping its host while drawing is suspended")
 	activity.set_wallpaper(false)
 	activity.set_foreground_frame_limit(60)
 	activity._active=false
@@ -23,7 +23,7 @@ func _run() -> void:
 	assert(Engine.max_fps==60,"Visible second-screen preview must not fall to 15 FPS")
 	root.mode=Window.MODE_MINIMIZED
 	activity._apply_frame_limit()
-	assert(Engine.max_fps==15,"Minimized preview retains the background cap")
+	assert(Engine.max_fps==20,"Minimized preview keeps pumping its host while drawing is suspended")
 	root.mode=Window.MODE_WINDOWED
 	activity.set_foreground_frame_limit(30)
 	activity._active=false

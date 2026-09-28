@@ -25,6 +25,7 @@ var _quality: String = "standard"
 var _shadows: String = "standard"
 var _lighting: String = "standard"
 var _antialiasing: String = "2x"
+var _wallpaper_observing: bool = false
 var _dof_enabled: bool = true
 var _dof_strength: float = 1.7
 var _fog_strength: float = 0.28
@@ -45,6 +46,7 @@ func protect_neighbor(island: Node3D) -> void:
 
 func configure(camera: Camera3D, fields: Array, environment: Node3D, decorations: Node3D) -> void:
 	_camera = camera
+	_camera.get_viewport().mesh_lod_threshold = 4.0
 	_fields = fields.duplicate()
 	_environment = environment
 	_decorations = decorations
@@ -134,10 +136,20 @@ func get_settings() -> Dictionary:
 	return {"quality": _quality, "shadows": _shadows, "lighting": _lighting, "antialiasing": _antialiasing, "dof_enabled": _dof_enabled, "dof_strength": _dof_strength, "fog_strength": _fog_strength}
 
 
+func set_wallpaper_observing(observing: bool) -> void:
+	if _wallpaper_observing == observing:
+		return
+	_wallpaper_observing = observing
+	if _camera != null:
+		refresh_antialiasing()
+
+
 func refresh_antialiasing() -> void:
 	var viewport: Viewport = _camera.get_viewport()
 	# FSR2 already reconstructs antialiased edges; avoid stacking MSAA's cost.
-	viewport.msaa_3d = Viewport.MSAA_DISABLED if viewport.scaling_3d_mode == Viewport.SCALING_3D_MODE_FSR2 else ({"off": Viewport.MSAA_DISABLED, "2x": Viewport.MSAA_2X, "4x": Viewport.MSAA_4X}[_antialiasing])
+	var target: Viewport.MSAA = Viewport.MSAA_DISABLED if _wallpaper_observing or viewport.scaling_3d_mode == Viewport.SCALING_3D_MODE_FSR2 else ({"off": Viewport.MSAA_DISABLED, "2x": Viewport.MSAA_2X, "4x": Viewport.MSAA_4X}[_antialiasing])
+	if viewport.msaa_3d != target:
+		viewport.msaa_3d = target
 
 
 func _apply_quality(previous: Dictionary = {}) -> void:

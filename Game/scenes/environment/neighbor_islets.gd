@@ -59,19 +59,27 @@ func _add(label: String, asset: String, at: Vector3, yaw: float, directory: Stri
 	# their apparent size; layout never scales a distant household down or up.
 	var levels: Array[Node3D] = []
 	for tier: String in ["high", "low"]:
-		var node: Node3D = (load(directory+asset+"_"+tier+".glb") as PackedScene).instantiate()
-		holder.add_child(node)
-		levels.append(node)
-		for geometry: MeshInstance3D in node.find_children("*", "MeshInstance3D", true, false):
-			geometry.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			for surface: int in geometry.mesh.get_surface_count():
-				var source: StandardMaterial3D = geometry.get_active_material(surface)
-				var material := ShaderMaterial.new()
-				material.shader = preload("res://scenes/environment/islet_surface.gdshader")
-				material.set_shader_parameter("painted_color",source.albedo_texture)
-				geometry.set_surface_override_material(surface, material)
+		levels.append(_instantiate_tier(holder,directory+asset+"_"+tier+".glb"))
 	levels[1].visible = false
-	_islets.append({"node":holder, "high":levels[0], "low":levels[1], "distant":false,"base_position":at})
+	_islets.append({"node":holder, "high":levels[0], "low":levels[1], "high_path":directory+asset+"_high.glb", "releasable":at.length()>=28.0, "distant":false,"base_position":at})
+
+
+func _instantiate_tier(holder: Node3D, path: String) -> Node3D:
+	var packed: PackedScene = load(path) as PackedScene
+	if packed == null:
+		push_error("Neighbor island model is missing: " + path)
+		return null
+	var node: Node3D = packed.instantiate()
+	holder.add_child(node)
+	for geometry: MeshInstance3D in node.find_children("*", "MeshInstance3D", true, false):
+		geometry.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		for surface: int in geometry.mesh.get_surface_count():
+			var source: StandardMaterial3D = geometry.get_active_material(surface)
+			var material := ShaderMaterial.new()
+			material.shader = preload("res://scenes/environment/islet_surface.gdshader")
+			material.set_shader_parameter("painted_color",source.albedo_texture)
+			geometry.set_surface_override_material(surface, material)
+	return node
 
 func preview_expansion(value: Vector2) -> void:
 	if value.is_equal_approx(shore_expansion): return
@@ -91,9 +99,17 @@ func _process(_delta: float) -> void:
 	_last_camera_position = camera.global_position
 	for entry: Dictionary in _islets:
 		var distance: float = camera.global_position.distance_to(entry.node.global_position)
+		if entry.releasable:
+			if entry.high == null and distance < 38.0 and not _low_quality and not entry.get("load_failed",false):
+				entry.high = _instantiate_tier(entry.node,entry.high_path)
+				entry.load_failed = entry.high == null
+			elif entry.high != null and distance > 50.0:
+				_cache_land_outline(entry)
+				entry.high.queue_free()
+				entry.high = null
 		# Hysteresis prevents tier flicker when orbiting across the boundary.
-		var distant: bool = distance > (28.0 if entry.distant else 34.0)
-		entry.high.visible = not (_low_quality or distant)
+		var distant: bool = distance > (28.0 if entry.distant else 34.0) or entry.high == null
+		if entry.high != null: entry.high.visible = not (_low_quality or distant)
 		entry.low.visible = _low_quality or distant
 		entry.distant = distant
 		if entry.has("plants"): entry.plants.set_low_detail(_low_quality or distance > 24.0)
@@ -109,22 +125,30 @@ func waterline_sources() -> Array[Node3D]:
 	var result: Array[Node3D] = []
 	for entry: Dictionary in _islets:
 		# Source triangles, once at construction; hidden LOD must not be counted.
-		if entry.node.position.length() < 28.0: result.append(entry.high)
+		if entry.node.position.length() < 28.0:
+			if entry.high == null: entry.high = _instantiate_tier(entry.node,entry.high_path)
+			if entry.high != null:
+				entry.releasable = false
+				result.append(entry.high)
 	return result
 
 func construction_obstacles(candidate: RefCounted) -> Array[PackedVector2Array]:
 	var result: Array[PackedVector2Array]=[]
 	for entry: Dictionary in _islets:
-		if not entry.has("land_outline"):
-			var world: PackedVector2Array=preload("res://scenes/environment/animal_space.gd").cached_footprint(entry.high,-.7,-.15)
-			var current:=Transform2D(-entry.node.rotation.y,Vector2(entry.node.position.x,entry.node.position.z))
-			entry.land_outline=current.affine_inverse()*world
+		_cache_land_outline(entry)
 		# Match the existing limited western scenery movement, without moving
 		# connected playable islands or letting distant households overlap land.
 		var at: Vector3=entry.base_position
 		at.x-=candidate.scenery_expansion.max(candidate.shore_expansion).x*(1.0-smoothstep(-10.0,-4.0,at.x))
 		result.append(Transform2D(-entry.node.rotation.y,Vector2(at.x,at.z))*entry.land_outline)
 	return result
+
+
+func _cache_land_outline(entry: Dictionary) -> void:
+	if entry.has("land_outline") or entry.high == null: return
+	var world: PackedVector2Array=preload("res://scenes/environment/animal_space.gd").cached_footprint(entry.high,-.7,-.15)
+	var current:=Transform2D(-entry.node.rotation.y,Vector2(entry.node.position.x,entry.node.position.z))
+	entry.land_outline=current.affine_inverse()*world
 
 func show_stories(neighbors: Dictionary, living: Node3D) -> void:
 	for id: String in HOUSE_NODES:

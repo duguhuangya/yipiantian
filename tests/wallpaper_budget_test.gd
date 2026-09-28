@@ -25,6 +25,7 @@ var failures: Array[String] = []
 var visible_only: bool = false
 var visual_only: bool = false
 var no_captures: bool = false
+var ablation: String = ""
 
 func _ready() -> void:
 	process_mode=Node.PROCESS_MODE_ALWAYS
@@ -40,6 +41,7 @@ func _ready() -> void:
 		elif arg=="--visible-only": visible_only=true
 		elif arg=="--visual-only": visual_only=true
 		elif arg=="--no-captures": no_captures=true
+		elif arg.begins_with("--ablation="): ablation=arg.trim_prefix("--ablation=")
 	_run.call_deferred()
 
 func _physics_process(delta: float) -> void:
@@ -119,10 +121,25 @@ func _run() -> void:
 			if scene.desktop_wallpaper.active and not scene.desktop_wallpaper.busy: break
 		check(scene.desktop_wallpaper.active,"Real native host attached")
 	else: scene._wallpaper_changed(true)
+	var restored_casters: int = 0
+	match ablation:
+		"msaa": root.msaa_3d=Viewport.MSAA_2X
+		"lod": root.mesh_lod_threshold=1.0
+		"small_shadows":
+			for node: GeometryInstance3D in scene.find_children("*", "GeometryInstance3D", true, false):
+				var mesh: Mesh = node.mesh if node is MeshInstance3D else (node.multimesh.mesh if node is MultiMeshInstance3D and node.multimesh != null else null)
+				if mesh == null: continue
+				var path: String=mesh.resource_path
+				if "chrysanthemum" in path or "seedling" in path or "lotus" in path or "/crops/" in path or "EntranceTrellis" in str(node.get_path()):
+					if node.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF:
+						node.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+						restored_casters+=1
+		"": pass
+		_: check(false,"Unsupported release ablation: "+ablation)
 	RenderingServer.viewport_set_measure_render_time(root.get_viewport_rid(),true)
 	await RenderingServer.frame_post_draw
 	_write("startup-pipelines.json",_pipeline_counts())
-	_write("ready.json",{"startup_ms":Time.get_ticks_msec()-started,"engine":Engine.get_version_info(),"exported":not OS.has_feature("editor"),"native_host":native,"rendering_method":RenderingServer.get_current_rendering_method(),"rendering_driver":RenderingServer.get_current_rendering_driver_name(),"adapter":RenderingServer.get_video_adapter_name(),"resolution":resolution,"output_size":root.size,"crop_count":index,"animals":scene.get_node("Environment/CourtyardAnimals").birds.size()})
+	_write("ready.json",{"startup_ms":Time.get_ticks_msec()-started,"engine":Engine.get_version_info(),"exported":not OS.has_feature("editor"),"native_host":native,"rendering_method":RenderingServer.get_current_rendering_method(),"rendering_driver":RenderingServer.get_current_rendering_driver_name(),"adapter":RenderingServer.get_video_adapter_name(),"resolution":resolution,"output_size":root.size,"crop_count":index,"animals":scene.get_node("Environment/CourtyardAnimals").birds.size(),"ablation":ablation,"msaa_3d":root.msaa_3d,"mesh_lod_threshold":root.mesh_lod_threshold,"restored_casters":restored_casters})
 	if visual_only:
 		await _visual_comparison()
 		return

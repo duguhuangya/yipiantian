@@ -1896,6 +1896,7 @@ func _wallpaper_changed(enabled: bool) -> void:
 	_wallpaper_press = Vector2.INF
 	_cancel_input()
 	window_activity.set_wallpaper(enabled)
+	focus_detail.set_wallpaper_observing(enabled)
 	camera.free_input_enabled = not enabled
 	get_viewport().gui_disable_input = enabled
 	game_menu.set_wallpaper_mode(enabled)
@@ -1918,6 +1919,7 @@ func _wallpaper_changed(enabled: bool) -> void:
 
 func _wallpaper_interaction_changed(enabled: bool) -> void:
 	window_activity.set_wallpaper_interacting(enabled)
+	focus_detail.set_wallpaper_observing(not enabled)
 	get_viewport().gui_disable_input = not enabled
 	camera.free_input_enabled = enabled
 	if enabled:

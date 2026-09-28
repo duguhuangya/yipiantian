@@ -17,6 +17,8 @@ static func instantiate_asset(id: String, tier: String = "high") -> Node3D:
 	var root: Node3D = _scenes[path].instantiate()
 	for mesh: MeshInstance3D in root.find_children("*","MeshInstance3D",true,false):
 		mesh.lod_bias = 1.0
+		if id in ["chrysanthemum", "seedling"]:
+			mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		for surface: int in mesh.mesh.get_surface_count():
 			var original: StandardMaterial3D = mesh.get_active_material(surface)
 			var key: int = original.get_instance_id()

@@ -27,7 +27,10 @@ for name in ['global_script_class_cache.cfg','uid_cache.bin']:
     if (source/'.godot'/name).exists(): shutil.copy2(source/'.godot'/name,cache/name)
 shutil.copy2(base/'tests/wallpaper_budget_test.gd',target/'development/wallpaper_budget.gd')
 (target/'development/wallpaper_budget.tscn').write_text('[gd_scene load_steps=2 format=3]\n[ext_resource type="Script" path="res://development/wallpaper_budget.gd" id="1"]\n[node name="WallpaperBudget" type="Node"]\nscript = ExtResource("1")\n','utf-8')
-p=target/'project.godot';p.write_text(p.read_text('utf-8').replace('run/main_scene="res://scenes/main.tscn"','run/main_scene="res://development/wallpaper_budget.tscn"'),'utf-8')
+p=target/'project.godot';configuration=p.read_text('utf-8')
+entry='run/main_scene="res://scenes/startup.tscn"'
+if configuration.count(entry)!=1: raise SystemExit('Benchmark entry replacement requires the current production startup scene')
+p.write_text(configuration.replace(entry,'run/main_scene="res://development/wallpaper_budget.tscn"'),'utf-8')
 shutil.copy2(base/'.local/builds/windows/FarmDesktop.exe',dst/'FarmDesktop.exe')
 (dst/'benchmark.json').write_text(json.dumps({'entry':'res://development/wallpaper_budget.tscn','source_sha256':digest.hexdigest(),'probe_sha256':hashlib.sha256((base/'tests/wallpaper_budget_test.gd').read_bytes()).hexdigest(),'commit':subprocess.check_output(['git','rev-parse','HEAD'],cwd=base,text=True).strip(),'runtime':'release template with isolated measurement entry'},indent=2),'utf-8')
 '@ | python - $repo

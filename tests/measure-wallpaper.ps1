@@ -13,6 +13,8 @@ param(
  [switch]$NoCaptures,
  [ValidateSet('','forward_plus','mobile','gl_compatibility')][string]$RenderingMethod='',
  [ValidateSet('','vulkan','d3d12','opengl3')][string]$RenderingDriver='',
+ [ValidateSet('','msaa','lod','small_shadows')][string]$Ablation='',
+ [string]$WarmCacheFrom='',
  [ValidateRange(5,180)][int]$IdleSeconds=180
 )
 $ErrorActionPreference = 'Stop'
@@ -24,6 +26,17 @@ if (Test-Path -LiteralPath $auditRoot) {throw 'Use a fresh evidence directory.'}
 $Probe=Join-Path $PSScriptRoot 'wallpaper_budget_test.gd'
 $runtime=if ($Executable) {'Release template with isolated measurement entry'} else {'Pinned Godot executable; source diagnostics only'}
 New-Item -ItemType Directory -Path $auditRoot -Force | Out-Null
+if ($WarmCacheFrom) {
+ $cacheSource=[IO.Path]::GetFullPath($WarmCacheFrom)
+ if (-not $cacheSource.StartsWith($allowed+[IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase) -or -not (Test-Path -LiteralPath (Join-Path $cacheSource 'results.json'))) {throw 'Warm cache source must be a completed measurement directory below .local/verification.'}
+ $sourceProfile=Join-Path $cacheSource 'profile/roaming/Godot/app_userdata/我有一片田'
+ $targetProfile=Join-Path $auditRoot 'profile/roaming/Godot/app_userdata/我有一片田'
+ New-Item -ItemType Directory -Path $targetProfile -Force | Out-Null
+ foreach($name in @('shader_cache','vulkan')) {
+  $from=Join-Path $sourceProfile $name
+  if(Test-Path -LiteralPath $from) {Copy-Item -LiteralPath $from -Destination (Join-Path $targetProfile $name) -Recurse}
+ }
+}
 # Release templates intentionally ignore --script. A normal scene entry uses
 # the actual release runtime and packed production resources instead.
 $probeScene=Join-Path $auditRoot 'probe.tscn'
@@ -38,8 +51,10 @@ if ($Executable) {
 }
 $hardware = @{commit=(& git -C $auditRepo rev-parse HEAD);cpu=(Get-CimInstance Win32_Processor | Select-Object Name,NumberOfLogicalProcessors);os=(Get-CimInstance Win32_OperatingSystem | Select-Object Caption,Version);gpu=(Get-CimInstance Win32_VideoController | Select-Object Name,DriverVersion);physical_memory=(Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory;power_plan=(& powercfg /GETACTIVESCHEME);runtime=$runtime;policy='Isolated farm, owned nonfocusing cover when Native requested';native=[bool]$Native;capacity=[bool]$Capacity;resolution=$Resolution;quality=$Quality;soak_hours=$SoakHours;started=(Get-Date -Format o);measurement_keepawake='Temporary display/system request covers both idle baselines and game; power plan unchanged'}
 $hardware.no_captures=[bool]$NoCaptures
+$hardware.warm_cache_from=$WarmCacheFrom
 $hardware.requested_rendering_method=$RenderingMethod
 $hardware.requested_rendering_driver=$RenderingDriver
+$hardware.ablation=$Ablation
 $hardware | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $auditRoot 'hardware.json') -Encoding utf8
 if (-not ('WallpaperMeasurementPower' -as [type])) {
  Add-Type -TypeDefinition @'
@@ -90,6 +105,7 @@ if ($Capacity) {$info.ArgumentList.Add('--capacity')}
 $info.ArgumentList.Add('--quality='+$Quality)
 if ($VisibleOnly) {$info.ArgumentList.Add('--visible-only')}
 if ($NoCaptures) {$info.ArgumentList.Add('--no-captures')}
+if ($Ablation) {$info.ArgumentList.Add('--ablation='+$Ablation)}
 $info.Environment['APPDATA']=Join-Path $auditRoot 'profile/roaming'
 $info.Environment['LOCALAPPDATA']=Join-Path $auditRoot 'profile/local'
 New-Item -ItemType Directory -Path $info.Environment['APPDATA'],$info.Environment['LOCALAPPDATA'] -Force | Out-Null

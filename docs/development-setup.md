@@ -397,6 +397,22 @@ Windows图形独立包stdout在重定向时可能缓冲到退出，期间指定l
 
 满容量测量使用既有12田块布局，但必须先`apply_construction`更新扩地后的实际岸线，再计算田块高度；直接修改布局字典会产生非法布局，发行模板中初始化断言被移除后可能崩溃。测量入口在构造农场前调用正常布局接纳检查，禁止将这类夹具失败计作游戏性能数据。
 
+### 观赏模式 GPU 与内存分项复测（2026-09-29）
+
+证据在 `.local/verification/wallpaper-optim-20260929/`。固定夹具为Godot 4.7.2／D3D12／RTX4090、4K输出／1080三维、96格成熟混种及7只动物；性能对照使用第二屏不抢焦点的不限帧场景，发行内存使用 `build-desktop.ps1`、`build-wallpaper-benchmark.ps1` 和 `measure-wallpaper.ps1 -Native -NoCaptures -VisibleOnly`，每组隔离用户目录。暖缓存只从同组冷测复制管线缓存，不复制农场或偏好；`-WarmCacheFrom`记录来源。发行模板不能用 `--script` 覆盖入口，基准副本必须替换 `startup.tscn` 而非旧的 `main.tscn`；导出时若漏掉当前主场景依赖的 `procedural_lab` 构件脚本，冷测无法启动，此次已修正导出预设。最初失败的构建与冷测不能充当性能证据。
+
+当前已采用：壁纸观赏阶段临时关闭3D MSAA，交互和普通窗口恢复玩家设置；根视口网格细节阈值为4，聚焦田块仍用2.0偏置；菊花、秧苗、荷花、田间作物及藤蔓不投影，大树和竹子仍投影；汇文明朝体按工程实际字集裁剪，原字体与可复现脚本在 `ArtSource/UI/Fonts/`；远处七座邻居岛的高精度实例在远镜头释放、靠近时重新加载。原生桌面往返 `p2-native-roundtrip/` 两轮零失败，观赏30帧、交互60帧及MSAA恢复均确认；院落与岛屿定向检查见 `p10-island-world-fixed/`。字体未收录的用户输入字符走系统字体回退，罕见人名外观可能不同。
+
+不限帧合并样本 `adopted-probe/`：GPU约1.70ms／帧，主画面约544万三角、阴影约250万；本任务开始的同类夹具约2.38ms、650万及630万，分别约降低28%、16%及60%。分项 `p2-p4-compare/`：关MSAA约-18% GPU及-84MiB纹理；LOD阈值1→4约-8% GPU；小植物不投影约-5% GPU，各项不可直接相加。阈值8约-11%，但远景细节损失风险更高，未采用。30帧发行版反向消融 `release-ablate-msaa-*` 中恢复2x使纹理＋缓冲增加83.6MiB；`release-ablate-lod-*` 使主画面增加约102.5万三角；`release-ablate-shadows-*` 使阴影增加约240万三角。30帧GPU计时包含降频和等待，不能从其约10ms读数推断实际绘制开销。
+
+30帧发行版完整冷测 `release-final30-forward-cold/`：可见段工作集约747.0MiB、私有提交约1675.2MiB、引擎纹理＋缓冲约686.0MiB；对应暖测 `release-final30-forward-warm/` 为674.2／1604.2／686.0MiB。远岛原版30帧配对 `release-p10-original-*` 与最终版相比，纹理＋缓冲多15.4MiB，但操作系统工作集没有稳定降低，不能把缓冲节省写成进程驻留收益。原字体与裁剪字体的完整30帧配对 `release-font-original30-*` 和最终版，冷缓存工作集766.0→747.0MiB，暖缓存696.0→674.2MiB；私有提交分别1691.5→1675.2MiB及1621.7→1604.2MiB，引擎纹理＋缓冲均为686.0MiB。此前20帧配对仅是先导样本。纹理＋缓冲是独立预算，不等于进程工作集，也不等于整卡显存。
+
+未采用的LOD尝试见 `p5-flowers/`、`p5-bamboo/`、`p5-distance/` 和独立工程 `p5-crop-base/`／`p5-crop-lod/`：院内菊花整体换低模没有GPU收益；竹子高低模约1.704／1.702ms，无收益；25米人工档虽减少约24万三角，但会切换可见房屋和树木。作物自动LOD减少约46万三角，但显卡频率不同且薄叶破面风险已有记录，未作逐模型正反近远验收，因此不进入正式资产。锁定显卡频率的系统命令被拒绝；这些小差别不能写成锁频GPU收益。
+
+待画面决定的对照：`p1-final-video/30-left-20-right.mp4`（左30、右20帧；正式策略暂保留30）；`p2-p4-compare/` 为MSAA、阈值与正午植物阴影4K全景／近景；`mobile-images/` 与 `profile-forward-visible/` 为Mobile／Forward+；`p7-p8/` 为900p／720p及景深开关。Mobile发行版暖测 `release-final30-mobile-warm/` 比当前Forward+工作集低约25.5MiB，纹理＋缓冲低约74.1MiB，但缺少SSAO／SSIL且景深前景边缘更粗糙；全局切换需画面判断，双进程共存会增加常驻成本。900p、720p和关景深不限帧短测分别约-12%、-20%和-10% GPU，均未写入正式设置。当前没有核显设备实测，**未在核显验证**。
+
+`--gpu-profile` 各阶段日志在 `profile-forward-visible.log`／`profile-mobile-visible.log`；当前Forward+可见场景约125个表面管线、121个特化变体，材质普查在 `profile-forward-visible/material-census.json`。仅见管线数和工作集相关，尚无统一材质可重复节省的配对证据，因此不改材质。天空参数冻结此前实测无GPU收益，本轮不再重做。截图读回会改变内存结论，性能及发行驻留用 `-NoCaptures`，画面对照另录；用户决策前不得把候选写成已采用。
+
 ### 阴影稳定性与开销定位（2026-09-24）
 
 RTX4090、Godot 4.7.2 Forward+、4K UI／1080三维、96格成熟混种、7只动物的开发实例分项诊断：在解除帧率限制且显卡维持P0约2745MHz的短样本中，基线GPU每帧2.191ms；只隐藏院落环境降到0.966ms，关闭太阳阴影1.778ms，隐藏院内树竹花1.825ms，隐藏农田1.868ms，关闭SSAO1.956ms，关闭水面2.061ms。各项有重叠，不能相加或当作删掉相应内容的建议。主要负担在环境几何、投影与提交；降水面／景深不是第一优先。30帧时显卡自动降频，约8–9ms的GPU读数不能直接与P0结果相比，亦不能用不限帧整卡功耗判断壁纸省电收益。[渲染计时的频率边界](https://docs.godotengine.org/en/4.7/classes/class_renderingserver.html#class-renderingserver-method-viewport-get-measured-render-time-gpu)。
@@ -519,7 +535,7 @@ Godot 4.7.2／Forward+：显示页提供FSR关闭、画质优先、平衡、性�
 
 ### 程序化岛屿研究室（2026-09-24）
 
-独立场景位于 `Game/scenes/procedural_lab/procedural_lab.tscn`；直接指定场景启动，主入口和农场存档不变，Windows导出预设排除此研究目录。使用已有开发预览入口确认静音、第二屏独占全屏与窗口就绪：
+独立场景位于 `Game/scenes/procedural_lab/procedural_lab.tscn`；直接指定场景启动，主入口和农场存档不变。当前主场景复用研究目录中的构件脚本，因此Windows发行包保留该目录，不能再整体排除。使用已有开发预览入口确认静音、第二屏独占全屏与窗口就绪：
 
 ```powershell
 # 在 PowerShell 7 的仓库根目录执行；只运行研究场景。

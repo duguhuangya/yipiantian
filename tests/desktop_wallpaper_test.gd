@@ -43,6 +43,7 @@ func _run() -> void:
 		# The menu dismissal is animated; wait for its next covered 2 FPS frame.
 		await create_timer(0.6).timeout
 		check(not scene.hud.visible and not scene.game_menu.visible, "Wallpaper hides gameplay UI")
+		check(root.msaa_3d == Viewport.MSAA_DISABLED, "Observing wallpaper disables 3D MSAA")
 		check(root.gui_disable_input, "Wallpaper never handles desktop clicks")
 		var stream := FileAccess.open(evidence.path_join("active.json"), FileAccess.WRITE)
 		stream.store_string(JSON.stringify({"pid": OS.get_process_id(), "host": controller._host.pid,
@@ -58,12 +59,12 @@ func _run() -> void:
 			for tick: int in 100:
 				await create_timer(0.1).timeout
 				if controller.interacting and not controller.busy: break
-			check(controller.interacting and Engine.max_fps == 60, "Interactive desktop is capped at 60 fps")
+			check(controller.interacting and Engine.max_fps == 60 and root.msaa_3d == Viewport.MSAA_2X, "Interactive desktop restores the selected MSAA and 60 fps cap")
 			controller.set_interacting(false)
 			for tick: int in 100:
 				await create_timer(0.1).timeout
 				if not controller.interacting and not controller.busy: break
-			check(not controller.interacting and Engine.max_fps == 30, "Desktop observation resumes at 30 fps")
+			check(not controller.interacting and Engine.max_fps == 30 and root.msaa_3d == Viewport.MSAA_DISABLED, "Desktop observation resumes with no MSAA and a 30 fps cap")
 		scene.window_activity.set_wallpaper_visible(false)
 		check(scene.window_activity.is_suspended() and paused and not RenderingServer.is_render_loop_enabled(), "Covered wallpaper suspends scene and rendering, host remains responsive")
 		controller.restore()
@@ -71,6 +72,7 @@ func _run() -> void:
 			await create_timer(0.1).timeout
 			if not controller.active and controller._host.is_empty(): break
 		check(not controller.active and not controller.busy and controller._host.is_empty(), "Restore terminates host")
+		check(root.msaa_3d == Viewport.MSAA_2X, "Windowed game restores the selected MSAA")
 		check(root.size == original_size and root.position == original_position, "Original window bounds restored")
 		check(scene.hud.visible and not root.gui_disable_input, "Gameplay UI and input restored")
 		check(scene.farm_state.snapshot().inventory == before.inventory, "Switching modes never changes inventory")
