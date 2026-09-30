@@ -67,4 +67,4 @@ courtyard_haze_color={
 
 [threading]
 
-worker_pool/max_threads=8
+worker_pool/max_threads=5
